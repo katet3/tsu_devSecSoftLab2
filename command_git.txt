@@ -1,3 +1,6 @@
-
-
+git branch
+git checkout main
+git ls-tree -r --name-only HEAD
+git status
+git add <folder_name>
 git rm -r <folder_name>
