@@ -4,3 +4,4 @@ git ls-tree -r --name-only HEAD
 git status
 git add <folder_name>
 git rm -r <folder_name>
+git rm --cached *.out не отслеживать которые были ранне
