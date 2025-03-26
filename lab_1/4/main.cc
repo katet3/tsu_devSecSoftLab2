@@ -32,7 +32,7 @@ class AccountRepository : public IRepository {
 public:
     void SaveEntity(const AbstractEntity& entity) override {
         std::cout << "Saving AccountEntity..." << std::endl;
-        entity.PrintInfo(); // Выполняем специфические действия для AccountEntity
+        entity.PrintInfo();
     }
 };
 
