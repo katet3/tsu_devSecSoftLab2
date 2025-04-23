@@ -1,4 +1,0 @@
-sudo apt install gcc-multilib
-sudo apt install mingw-w64 cmake
-cmake -DCMAKE_TOOLCHAIN_FILE=../mingw_toolchain.cmake ..
-make

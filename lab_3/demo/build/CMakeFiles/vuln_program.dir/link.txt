@@ -1,3 +1,0 @@
-/usr/bin/cmake -E rm -f CMakeFiles/vuln_program.dir/objects.a
-/usr/bin/x86_64-w64-mingw32-ar qc CMakeFiles/vuln_program.dir/objects.a @CMakeFiles/vuln_program.dir/objects1.rsp
-x86_64-w64-mingw32-gcc -fno-stack-protector -no-pie -Wl,--whole-archive CMakeFiles/vuln_program.dir/objects.a -Wl,--no-whole-archive -o vuln_program.exe -Wl,--out-implib,libvuln_program.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles/vuln_program.dir/linklibs.rsp

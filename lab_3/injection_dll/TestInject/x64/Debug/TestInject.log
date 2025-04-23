@@ -1,4 +1,0 @@
-﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(531,5): warning MSB8028: промежуточный каталог (x64\Debug\) содержит файлы, которые используются совместно с другим проектом (TestInject.vcxproj).  Это может привести к ошибкам очистки и перестроения.
-  DllInjectorAsDll.cpp
-     Создается библиотека D:\code\4course_2sem\devSecSoft\lab_3\infected_dll\TestDLL\x64\Debug\DllInjectorAsDll.lib и объект D:\code\4course_2sem\devSecSoft\lab_3\infected_dll\TestDLL\x64\Debug\DllInjectorAsDll.exp
-  TestInject.vcxproj -> D:\code\4course_2sem\devSecSoft\lab_3\infected_dll\TestDLL\x64\Debug\DllInjectorAsDll.dll
