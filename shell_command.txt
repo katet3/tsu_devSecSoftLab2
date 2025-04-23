@@ -1,0 +1,1 @@
+Rundll32.exe C:\Temp\DllInjectorAsDll.dll,HelperFunc 18392 <PID>
