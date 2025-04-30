@@ -1,0 +1,10 @@
+^D:\CODE\4COURSE_2SEM\DEVSECSOFT\SAT_DPLL_CUSTOM\BUILD\CMAKEFILES\56D82D7CC6F64E65D43FD6BCF2C54623\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/code/4course_2sem/devSecSoft/SAT_DPLL_custom -BD:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/SAT_DPLL.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

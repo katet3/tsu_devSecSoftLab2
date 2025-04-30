@@ -1,0 +1,4 @@
+D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/sat_dpll.dir
+D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/pvs_analysis_simple.dir
+D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/ALL_BUILD.dir
+D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/ZERO_CHECK.dir

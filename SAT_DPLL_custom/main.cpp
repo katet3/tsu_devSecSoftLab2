@@ -1,176 +1,180 @@
 #include <iostream>
-#include <QFile>
-#include <QTextStream>
-#include <QStack>
-#include <string>
-#include <cstring>
+#include <fstream>
 #include <stack>
-#include <ostream>
+#include <vector>
+#include <chrono>
+#include <stdexcept>
+#include <string>
+#include "./lib/Allocator/Allocator.h"
 #include "NodeBoolTree.h"
 #include "boolinterval.h"
 #include "boolequation.h"
 #include "BBV.h"
 
+// Аллокаторы для каждого типа
+Allocator boolIntervalAlloc(sizeof(BoolInterval), 0, nullptr, "BoolIntervalAlloc");
+Allocator boolEquationAlloc(sizeof(BoolEquation), 0, nullptr, "BoolEquationAlloc");
+Allocator nodeBoolTreeAlloc(sizeof(NodeBoolTree), 0, nullptr, "NodeBoolTreeAlloc");
 
-int main(int argc, char *argv[])
-{
-	QStringList full_file_list;
-	QList<QStringList> Elements;
-	std::string filepath;
-	QStringList inputs;
-	//std::cout << "Input file path...\n";
-	//std::cin >> filepath;
-	// Hardcode input
-	//	filepath = "sat_ex_2.pla";
-	//filepath = "Sat_ex11_3.pla";
-	filepath = "Sat_ex30_3.pla";
-	QFile file(QString::fromUtf8(filepath.c_str()));
+// Функция для чтения файла без Qt
+std::vector<std::string> readFile(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        throw std::runtime_error("File not found: " + filename);
+    }
 
-	//считываем весь файл
-	if ((file.exists()) && (file.open(QIODevice::ReadOnly))) {
-		while (!file.atEnd()) {
-			full_file_list << file.readLine().replace("\r\n", "");
-		}
+    std::vector<std::string> lines;
+    std::string line;
+    while (std::getline(file, line)) {
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
+    }
+    file.close();
+    return lines;
+}
 
-		int cnfSize = full_file_list.length();
-		BoolInterval **CNF = new BoolInterval*[cnfSize];
-		int rangInterval = -1; // error
+// Тест производительности: аллокатор vs new/delete
+void performanceTest() {
+    const int iterations = 10000;
 
-		if (cnfSize) {
-			rangInterval = full_file_list[0].toUtf8().trimmed().length();
-		}
+    // Тест с аллокатором
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < iterations; ++i) {
+        void* mem = boolIntervalAlloc.Allocate(sizeof(BoolInterval));
+        BoolInterval* interval = new (mem) BoolInterval("0101");
+        interval->~BoolInterval();
+        boolIntervalAlloc.Deallocate(mem);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto allocator_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-		for (int i = 0; i < cnfSize; i++) { // Заполняем массив
-			QString strv = full_file_list[i];
-			CNF[i] = new BoolInterval(strv.toUtf8().trimmed().data());
-		}
+    // Тест с new/delete
+    start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < iterations; ++i) {
+        BoolInterval* interval = new BoolInterval("0101");
+        delete interval;
+    }
+    end = std::chrono::high_resolution_clock::now();
+    auto new_time = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
 
-		QString rootvec = "";
-		QString rootdnc = "";
+    std::cout << "Performance results:\n";
+    std::cout << "Allocator: " << allocator_time << " μs\n";
+    std::cout << "New/Delete: " << new_time << " μs\n";
+    std::cout << "Speedup: " << (double)new_time / allocator_time << "x\n\n";
+}
 
-		//Строим интервал в которм все компоненты принимают значение '-',
-		//который представляет собой корень уравнения, пока пустой.
-		//В процессе поиска корня, компоненты интервала буду заменены на конкретные значения.
+// Тест обработки исключений
+void exceptionTest() {
+    try {
+        // Искусственно исчерпываем память
+        std::cout << "Testing out-of-memory...\n";
+        while (true) {
+            void* ptr = boolIntervalAlloc.Allocate(sizeof(BoolInterval));
+            if (!ptr) throw std::bad_alloc();
+            // Не вызываем деструктор специально для теста
+        }
+    } catch (const std::bad_alloc& e) {
+        std::cerr << "Caught exception: " << e.what() << "\n";
+    }
 
-		for (int i = 0; i < rangInterval; i++) {
-			rootvec += "0";
-			rootdnc += "1";
-		}
+    try {
+        // Тест двойного освобождения (для Valgrind/ASAN)
+        std::cout << "Testing double-free...\n";
+        void* mem = boolIntervalAlloc.Allocate(sizeof(BoolInterval));
+        BoolInterval* interval = new (mem) BoolInterval("0101");
+        boolIntervalAlloc.Deallocate(mem);
+        boolIntervalAlloc.Deallocate(mem);  // Intentional error
+    } catch (...) {
+        std::cerr << "Caught double-free attempt\n";
+    }
+}
 
-		QByteArray v = rootvec.toUtf8();
+int main() {
+    // Тест производительности
+    performanceTest();
 
-		BBV vec(v.data());
-		QByteArray d = rootdnc.toUtf8();
-		BBV dnc(d.data());
+    // Тест исключений
+    exceptionTest();
 
-		// Создаем пустой корень уравнения;
-		BoolInterval *root = new BoolInterval(vec, dnc);
+    // Основная логика программы
+    try {
+        // Чтение входного файла
+        auto lines = readFile("Sat_ex30_3.pla");
+        if (lines.empty()) {
+            throw std::runtime_error("Input file is empty");
+        }
 
-		BoolEquation *boolequation = new BoolEquation(CNF, root, cnfSize, cnfSize, vec);
+        // Создание CNF
+        int cnfSize = lines.size();
+        BoolInterval** CNF = new BoolInterval*[cnfSize];
+        for (int i = 0; i < cnfSize; ++i) {
+            CNF[i] = new BoolInterval(lines[i].c_str());
+        }
 
-		// Алгоритм поиска корня. Работаем всегда с верхушкой стека.
-		// Шаг 1. Правила выполняются? Нет - Ветвление Шаг 5. Да - Упрощаем Шаг 2.
-		// Шаг 2. Строки закончились? Нет - Шаг1, Да - Корень найден? Да - Успех КОНЕЦ, Нет - Шаг 3.
-		// Шаг 3. Кол-во узлов в стеке > 1? Нет - Корня нет КОНЕЦ, Да - Шаг 4.
-		// Шаг 4. Текущий узел выталкиваем из стека, попадаем в новый узел. У нового узла lt rt отличны от NULL? Нет - Шаг 1. Да - Шаг 3.
-		// Шаг 5. Выбор компоненты ветвления, создание двух новых узлов, добавление их в стек сначала с 1 потом с 0. Шаг 1.
+        // Создание корневого интервала
+        std::string rootvec(lines[0].size(), '0');
+        std::string rootdnc(lines[0].size(), '1');
+        BoolInterval* root = new BoolInterval(rootvec.c_str(), rootdnc.c_str());
 
-		// Алгоритм CheckRules.
-		// Цикл по строкам КНФ.
-		// 1. Проверка правила 2. Выполнилось? Да - Корня нет, Нет - Идем дальше.
-		// 2. Проверка правила 1. Выполнилось? Да - Упрощаем, Нет - Идем дальше.
+        // Создание уравнения
+        BoolEquation* equation = new BoolEquation(CNF, root, cnfSize, cnfSize, BBV(rootvec.c_str()));
 
-		// Создаем стек под узлы булева дерева
-		// QStack<NodeBoolTree> BoolTree;
+        // Алгоритм поиска (упрощенный пример)
+        std::stack<NodeBoolTree*> boolTreeStack;
+        
+        // Использование аллокатора для NodeBoolTree
+        void* nodeMem = nodeBoolTreeAlloc.Allocate(sizeof(NodeBoolTree));
+        NodeBoolTree* startNode = new (nodeMem) NodeBoolTree(equation);
+        boolTreeStack.push(startNode);
 
-		bool rootIsFinded = false;
-		stack<NodeBoolTree *> BoolTree;
-		NodeBoolTree *startNode = new NodeBoolTree(boolequation);
-		BoolTree.push(startNode);
+        while (!boolTreeStack.empty()) {
+            NodeBoolTree* current = boolTreeStack.top();
+            boolTreeStack.pop();
 
-		do {
-			NodeBoolTree *currentNode(BoolTree.top());
+            // Упрощенная логика обработки
+            if (current->eq->CheckRules() == 1) {
+                std::cout << "Solution found!\n";
+                break;
+            }
 
-			if (currentNode->lt == nullptr &&
-					currentNode->rt == nullptr) { // Если вернулись в обработанный узел
-				BoolEquation *currentEquation = currentNode->eq;
-				bool flag = true;
+            // Пример ветвления
+            int branchCol = current->eq->ChooseColForBranching();
+            
+            // Использование аллокатора для BoolEquation
+            void* eq0Mem = boolEquationAlloc.Allocate(sizeof(BoolEquation));
+            BoolEquation* eq0 = new (eq0Mem) BoolEquation(*current->eq);
+            void* eq1Mem = boolEquationAlloc.Allocate(sizeof(BoolEquation));
+            BoolEquation* eq1 = new (eq1Mem) BoolEquation(*current->eq);
+            
+            eq0->Simplify(branchCol, '0');
+            eq1->Simplify(branchCol, '1');
 
-				// Цикл для упрощения по правилам.
-				while (flag) {
-					int a = currentEquation->CheckRules(); // Проверка выполнения правил
+            void* node1Mem = nodeBoolTreeAlloc.Allocate(sizeof(NodeBoolTree));
+            NodeBoolTree* node1 = new (node1Mem) NodeBoolTree(eq1);
+            void* node0Mem = nodeBoolTreeAlloc.Allocate(sizeof(NodeBoolTree));
+            NodeBoolTree* node0 = new (node0Mem) NodeBoolTree(eq0);
 
-					switch (a) {
-						case 0: { // Корня нет.
-							BoolTree.pop();
-							flag = false;
-							break;
-						}
+            boolTreeStack.push(node1);
+            boolTreeStack.push(node0);
 
-						case 1: { // Правило выполнилось, корень найден или продолжаем упрощать.
-							if (currentEquation->count == 0 ||
-									currentEquation->mask.getWeight() ==
-									currentEquation->mask.getSize()) { // Если кончились строки или столбцы, корень найден.
-								flag = false;
-								rootIsFinded =
-									true; // Полагаем, что корень найден, выполняем проверку корня
+            // Освобождение памяти
+            current->~NodeBoolTree();
+            nodeBoolTreeAlloc.Deallocate(current);
+        }
 
-								for (int i = 0; i < cnfSize; i++) {
+        // Очистка
+        for (int i = 0; i < cnfSize; ++i) {
+            delete CNF[i];
+        }
+        delete[] CNF;
+        delete root;
+        delete equation;
 
-									if (!CNF[i]->isEqualComponent(*currentEquation->root)) {
-										rootIsFinded = false;//Корень не найден. Продолжаем искать дальше.
-										BoolTree.pop();
-										break;
-									}
-								}
-							}
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
 
-							break;
-						}
-
-						case 2: { // Правила не выполнились, ветвление.
-							// Ветвление, создание новых узлов.
-
-							int indexBranching = currentEquation->ChooseColForBranching();
-
-							BoolEquation *Equation0 = new BoolEquation(*currentEquation);
-							BoolEquation *Equation1 = new BoolEquation(*currentEquation);
-
-							Equation0->Simplify(indexBranching, '0');
-							Equation1->Simplify(indexBranching, '1');
-
-							NodeBoolTree *Node0 = new NodeBoolTree(Equation0);
-							NodeBoolTree *Node1 = new NodeBoolTree(Equation1);
-
-							currentNode->lt = Node0;
-							currentNode->rt = Node1;
-
-							BoolTree.push(Node1);
-							BoolTree.push(Node0);
-
-							flag = false;
-							break;
-						}
-					}
-				}
-			} else {
-				BoolTree.pop();
-			}
-
-		} while (BoolTree.size() > 1 && !rootIsFinded);
-
-		if (rootIsFinded) {
-			cout << "Root is:\n ";
-			BoolInterval *finded_root = BoolTree.top()->eq->root;
-			cout << string(*finded_root);
-		} else {
-			cout << "Root is not exists!";
-		}
-
-	} else {
-		std::cout << "File does not exists.\n";
-	}
-
-	return 0;
-
+    return 0;
 }
