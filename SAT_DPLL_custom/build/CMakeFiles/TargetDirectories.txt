@@ -1,4 +1,3 @@
-D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/sat_dpll.dir
-D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/pvs_analysis_simple.dir
-D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/ALL_BUILD.dir
-D:/code/4course_2sem/devSecSoft/SAT_DPLL_custom/build/CMakeFiles/ZERO_CHECK.dir
+/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/sat_dpll.dir
+/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/edit_cache.dir
+/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/rebuild_cache.dir
