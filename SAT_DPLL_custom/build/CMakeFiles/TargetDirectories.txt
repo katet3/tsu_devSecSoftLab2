@@ -1,3 +1,4 @@
-/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/sat_dpll.dir
+/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/SAT_DPLL.dir
+/mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/allocator_test.dir
 /mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/edit_cache.dir
 /mnt/d/code/4course_2sem/dev_sec_software/tsu_devSecSoftLab2/SAT_DPLL_custom/build/CMakeFiles/rebuild_cache.dir

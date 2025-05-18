@@ -186,4 +186,3 @@ void BoolInterval::setValue(char value, int ix)
 		dnc[ix] = 0;
 	}
 }
-

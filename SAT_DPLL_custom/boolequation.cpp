@@ -3,34 +3,46 @@
 #include <algorithm>
 #include <ostream>
 #include <string>
+#include <memory>
 
-BoolEquation::BoolEquation(BoolInterval **cnf, BoolInterval *root, int cnfSize, int count, BBV mask)
+BoolEquation::BoolEquation(BoolInterval **cnf, BoolInterval *root, int cnfSize, int count, BBV mask,
+                          std::shared_ptr<BranchingStrategy> strategy)
 {
-	this->cnf = new BoolInterval*[cnfSize];
+    this->cnf = new BoolInterval*[cnfSize];
 
-	for (int i = 0; i < cnfSize; i++) {
-		this->cnf[i] = cnf[i];
-	}
+    for (int i = 0; i < cnfSize; i++) {
+        this->cnf[i] = cnf[i];
+    }
 
-	this->root = root;
-	this->cnfSize = cnfSize;
-	this->count = count;
-	this->mask = mask;
-
+    this->root = root;
+    this->cnfSize = cnfSize;
+    this->count = count;
+    this->mask = mask;
+    
+    // Просто устанавливаем переданную стратегию
+    this->branchingStrategy = strategy;
 }
 
 BoolEquation::BoolEquation(BoolEquation &equation)
 {
-	this->cnf = new BoolInterval*[equation.cnfSize];
+    this->cnf = new BoolInterval*[equation.cnfSize];
 
-	for (int i = 0; i < equation.cnfSize; i++) {
-		this->cnf[i] = equation.cnf[i];
-	}
+    for (int i = 0; i < equation.cnfSize; i++) {
+        this->cnf[i] = equation.cnf[i];
+    }
 
-	this->root = new BoolInterval(equation.root->vec, equation.root->dnc);
-	this->cnfSize = equation.cnfSize;
-	this->count = equation.count;
-	this->mask = equation.mask;
+    this->root = new BoolInterval(equation.root->vec, equation.root->dnc);
+    this->cnfSize = equation.cnfSize;
+    this->count = equation.count;
+    this->mask = equation.mask;
+    
+    // Копируем стратегию в зависимости от её типа
+    if (auto colStrategy = dynamic_cast<ColumnBranchingStrategy*>(equation.branchingStrategy.get())) {
+        this->branchingStrategy = std::make_shared<ColumnBranchingStrategy>(*colStrategy);
+    } else if (auto rowStrategy = dynamic_cast<RowBranchingStrategy*>(equation.branchingStrategy.get())) {
+        this->branchingStrategy = std::make_shared<RowBranchingStrategy>(*rowStrategy);
+    }
+    // Здесь можно добавить поддержку других типов стратегий при необходимости
 }
 
 // Проверка правил
@@ -219,44 +231,13 @@ void BoolEquation::Simplify(int ixCol, char value)
 	mask.Set1(ixCol);
 }
 
-int BoolEquation::ChooseColForBranching()
+int BoolEquation::ChooseBranchingIndex()
 {
-	vector<int> indexes;
-	vector<int> values;
-	bool rezInit = false;
+    // Используем выбранную стратегию для определения индекса ветвления
+    return branchingStrategy->chooseBranchingIndex(cnf, cnfSize, mask);
+}
 
-	for (int i = 0; i < mask.getSize(); i++) {
-		if (mask[i] == 0) {
-			indexes.push_back(i);
-		}
-	}
-
-	for (int i = 0; i < cnfSize; i++) {
-		BoolInterval *interval = cnf[i];
-
-		if (interval != nullptr) {
-			if (!rezInit) {
-				for (int k = 0; k < indexes.size(); k++) {
-					if (interval->getValue(indexes.at(k)) == '-') {
-						values.push_back(1);
-					} else {
-						values.push_back(0);
-					}
-				}
-
-				rezInit = true;
-			} else {
-				for (int k = 0; k < indexes.size(); k++) {
-					if (interval->getValue(indexes.at(k)) == '-') {
-						//int val = values.at(k) + (interval->getValue(indexes.at(k)) - '0');
-						values.at(k)++;
-					}
-				}
-			}
-		}
-	}
-
-	int minElementIndex = std::min_element(values.begin(), values.end()) - values.begin();
-
-	return indexes.at(minElementIndex);
+void BoolEquation::SetBranchingStrategy(std::shared_ptr<BranchingStrategy> strategy)
+{
+    this->branchingStrategy = strategy;
 }
