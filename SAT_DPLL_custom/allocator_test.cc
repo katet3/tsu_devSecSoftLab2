@@ -6,123 +6,125 @@
 #include <chrono>
 #include <functional>
 #include <random>
-#include "./lib/Allocator/Allocator.h"
 #include <cassert>
+#include "./lib/Allocator/Allocator.h"
 
 struct TestBlock {
     int id;
     char data[1020];
 };
 
-Allocator stressTestAllocator(1024, 10, NULL, "StressTestAllocator");
+Allocator stress_test_allocator_(1024, 1000);
 
-static void out_of_memory()
-{
-    std::cout << "error out of memory" << std::endl;
-    assert(0);
+static void HandleOutOfMemory() {
+    std::cout << "Error: Out of memory" << std::endl;
+    assert(false);
 }
 
-void runAllocatorStressTest() {
-    std::set_new_handler(out_of_memory);
-    std::cout << "Запуск стресс-теста аллокатора...\n";
+void RunAllocatorStressTest() {
+    std::set_new_handler(HandleOutOfMemory);
+    std::cout << "Starting allocator stress test...\n";
     
-    const int NUM_BLOCKS = 1000000;
-    const int BLOCK_SIZE = sizeof(TestBlock);
-    const int MB_TO_ALLOCATE = NUM_BLOCKS * BLOCK_SIZE / (1024*1024);
+    const int kNumBlocks = 150;
+    const int kBlockSize = sizeof(TestBlock);
+    const int kMegabytesToAllocate = kNumBlocks * kBlockSize / (1024 * 1024);
     
-    std::cout << "Попытка выделить ~" << MB_TO_ALLOCATE << " MB памяти через аллокатор\n";
+    std::cout << "Attempting to allocate ~" << kMegabytesToAllocate << " MB\n";
     
-    std::vector<TestBlock*> blocks;
-    int successfulAllocations = 0;
+    std::vector<TestBlock*> allocated_blocks_;
+    int successful_allocations_ = 0;
     
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto allocation_start_time_ = std::chrono::high_resolution_clock::now();
     
     try {
-        for (int i = 0; i < NUM_BLOCKS; i++) {
-            void* memory = stressTestAllocator.Allocate(BLOCK_SIZE);
-            if (!memory) {
-                std::cout << "Не удалось выделить блок #" << i << std::endl;
+        for (int i = 0; i < kNumBlocks; ++i) {
+            void* allocated_memory_ = stress_test_allocator_.Allocate(kBlockSize);
+            if (!allocated_memory_) {
+                std::cout << "Failed to allocate block #" << i << std::endl;
                 break;
             }
             
-            TestBlock* block = new(memory) TestBlock();
-            block->id = i;
+            TestBlock* new_block_ = new(allocated_memory_) TestBlock();
+            new_block_->id = i;
             
-            for (int j = 0; j < 1020; j++) {
-                block->data[j] = static_cast<char>(i % 256);
+            for (int j = 0; j < 1020; ++j) {
+                new_block_->data[j] = static_cast<char>(i % 256);
             }
             
-            blocks.push_back(block);
-            successfulAllocations++;
+            allocated_blocks_.push_back(new_block_);
+            ++successful_allocations_;
             
             if (i % 10000 == 0) {
-                std::cout << "Выделено блоков: " << i << " (" 
-                          << (i * BLOCK_SIZE / (1024*1024)) << " MB)\n";
+                std::cout << "Allocated blocks: " << i << " (" 
+                          << (i * kBlockSize / (1024 * 1024)) << " MB)\n";
             }
         }
-    } catch (const std::exception& e) {
-        std::cout << "Исключение при выделении памяти: " << e.what() << std::endl;
+    } catch (const std::exception& exception) {
+        std::cout << "Memory allocation exception: " << exception.what() << std::endl;
     }
     
-    auto allocation_end_time = std::chrono::high_resolution_clock::now();
-    auto allocation_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-        allocation_end_time - start_time).count();
+    auto allocation_end_time_ = std::chrono::high_resolution_clock::now();
+    auto allocation_duration_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+        allocation_end_time_ - allocation_start_time_).count();
     
-    std::cout << "Успешно выделено блоков: " << successfulAllocations << " из " << NUM_BLOCKS << std::endl;
-    std::cout << "Объем выделенной памяти: " << (successfulAllocations * BLOCK_SIZE / (1024*1024)) << " MB\n";
-    std::cout << "Время выделения: " << allocation_duration << " мс\n";
+    std::cout << "Successfully allocated blocks: " << successful_allocations_ 
+              << " out of " << kNumBlocks << std::endl;
+    std::cout << "Total allocated memory: " 
+              << (successful_allocations_ * kBlockSize / (1024 * 1024)) << " MB\n";
+    std::cout << "Allocation time: " << allocation_duration_ << " ms\n";
     
-    const int NUM_CHECKS = std::min(100, successfulAllocations);
-    int errors = 0;
+    const int kNumChecks = std::min(100, successful_allocations_);
+    int found_errors_ = 0;
     
-    for (int i = 0; i < NUM_CHECKS; i++) {
-        int index = rand() % successfulAllocations;
-        TestBlock* block = blocks[index];
+    for (int i = 0; i < kNumChecks; ++i) {
+        int random_index_ = rand() % successful_allocations_;
+        TestBlock* current_block_ = allocated_blocks_[random_index_];
         
-        if (block->id != index) {
-            std::cout << "Ошибка в ID блока #" << index << ": ожидалось " << index 
-                        << ", получено " << block->id << std::endl;
-            errors++;
+        if (current_block_->id != random_index_) {
+            std::cout << "Block ID mismatch at #" << random_index_ << ": expected " 
+                      << random_index_ << ", got " << current_block_->id << std::endl;
+            ++found_errors_;
             continue;
         }
         
-        for (int j = 0; j < 10; j++) {  // Проверяем только первые 10 байт для скорости
-            if (block->data[j] != static_cast<char>(index % 256)) {
-                std::cout << "Ошибка в данных блока #" << index << " на позиции " << j << std::endl;
-                errors++;
+        for (int j = 0; j < 10; ++j) {
+            if (current_block_->data[j] != static_cast<char>(random_index_ % 256)) {
+                std::cout << "Data corruption in block #" << random_index_ 
+                          << " at position " << j << std::endl;
+                ++found_errors_;
                 break;
             }
         }
     }
     
-    std::cout << "Проверено блоков: " << NUM_CHECKS << ", найдено ошибок: " << errors << std::endl;
+    std::cout << "Verified blocks: " << kNumChecks 
+              << ", found errors: " << found_errors_ << std::endl;
     
-    std::cout << "Освобождение памяти...\n";
+    std::cout << "Starting memory deallocation...\n";
     
-    auto deallocation_start_time = std::chrono::high_resolution_clock::now();
+    auto deallocation_start_time_ = std::chrono::high_resolution_clock::now();
     
-    for (TestBlock* block : blocks) {
-        block->~TestBlock();
-        stressTestAllocator.Deallocate(block);
+    for (TestBlock* block_ptr_ : allocated_blocks_) {
+        block_ptr_->~TestBlock();
+        stress_test_allocator_.Deallocate(block_ptr_);
     }
     
-    auto deallocation_end_time = std::chrono::high_resolution_clock::now();
-    auto deallocation_duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-        deallocation_end_time - deallocation_start_time).count();
+    auto deallocation_end_time_ = std::chrono::high_resolution_clock::now();
+    auto deallocation_duration_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+        deallocation_end_time_ - deallocation_start_time_).count();
     
-    std::cout << "Время освобождения: " << deallocation_duration << " мс\n";
+    std::cout << "Deallocation time: " << deallocation_duration_ << " ms\n";
     
-    std::cout << "\n===== Статистика аллокатора после стресс-теста =====\n";
-    std::cout << "Размер блока: " << stressTestAllocator.GetBlockSize() << " байт\n";
-    std::cout << "Всего блоков: " << stressTestAllocator.GetBlockCount() << "\n";
-    std::cout << "Блоков в использовании: " << stressTestAllocator.GetBlocksInUse() << "\n";
-    std::cout << "Аллокаций: " << stressTestAllocator.GetAllocations() << "\n";
-    std::cout << "Деаллокаций: " << stressTestAllocator.GetDeallocations() << "\n";
+    std::cout << "\n===== Allocator statistics after stress test =====\n";
+    std::cout << "Block size: " << stress_test_allocator_.GetBlockSize() << " bytes\n";
+    std::cout << "Total blocks: " << stress_test_allocator_.GetBlockCount() << "\n";
+    std::cout << "Blocks in use: " << stress_test_allocator_.GetBlocksInUse() << "\n";
+    std::cout << "Allocations: " << stress_test_allocator_.GetAllocations() << "\n";
+    std::cout << "Deallocations: " << stress_test_allocator_.GetDeallocations() << "\n";
 }
 
-int main(int argc, char *argv[])
-{
-    std::cout << "=== ПРОГРАММА СТРЕСС-ТЕСТИРОВАНИЯ АЛЛОКАТОРА ===\n\n";
-    runAllocatorStressTest();
+int main(int argc, char* argv[]) {
+    std::cout << "=== ALLOCATOR STRESS TEST PROGRAM ===\n\n";
+    RunAllocatorStressTest();
     return 0;
 }

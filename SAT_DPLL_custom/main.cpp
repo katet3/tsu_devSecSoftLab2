@@ -13,351 +13,290 @@
 #include "BBV.h"
 #include "./lib/Allocator/Allocator.h"
 
+Allocator g_equation_allocator_(sizeof(BoolEquation), 1000, nullptr, "EquationAllocator");
+Allocator g_node_allocator_(sizeof(NodeBoolTree), 2000, nullptr, "NodeAllocator");
+Allocator g_interval_allocator_(sizeof(BoolInterval), 500, nullptr, "IntervalAllocator");
+Allocator g_bbv_allocator_(sizeof(BBV), 1000, nullptr, "BBVAllocator");
 
-Allocator equationAllocator(sizeof(BoolEquation), 1000, NULL, "EquationAllocator");  // Для BoolEquation
-Allocator nodeAllocator(sizeof(NodeBoolTree), 2000, NULL, "NodeAllocator");          // Для NodeBoolTree
-Allocator intervalAllocator(sizeof(BoolInterval), 500, NULL, "IntervalAllocator");   // Для BoolInterval
-Allocator bbvAllocator(sizeof(BBV), 1000, NULL, "BBVAllocator");                     // Для BBV
-
-// Функция для удаления символов переноса строки
-std::string trimNewlines(const std::string& str) {
-    std::string result = str;
-    result.erase(std::remove(result.begin(), result.end(), '\r'), result.end());
-    result.erase(std::remove(result.begin(), result.end(), '\n'), result.end());
-    return result;
+/* Удаляет символы переноса строки из строки */
+std::string TrimNewlines(const std::string& input_str_) {
+    std::string result_ = input_str_;
+    result_.erase(std::remove(result_.begin(), result_.end(), '\r'), result_.end());
+    result_.erase(std::remove(result_.begin(), result_.end(), '\n'), result_.end());
+    return result_;
 }
 
-// Функция для удаления лидирующих и замыкающих пробелов
-std::string trim(const std::string& str) {
-    auto start = str.begin();
-    while (start != str.end() && std::isspace(*start)) {
-        start++;
-    }
+/* Удаляет ведущие и завершающие пробелы */
+std::string TrimWhitespace(const std::string& input_str_) {
+    auto start_ = input_str_.begin();
+    while (start_ != input_str_.end() && std::isspace(*start_)) ++start_;
 
-    auto end = str.end();
-    do {
-        end--;
-    } while (std::distance(start, end) > 0 && std::isspace(*end));
+    auto end_ = input_str_.end();
+    do { --end_; } while (std::distance(start_, end_) > 0 && std::isspace(*end_));
 
-    return std::string(start, end + 1);
+    return std::string(start_, end_ + 1);
 }
 
 #ifdef USE_CUSTOM_ALLOCATOR
-BoolEquation* allocateEquation(BoolInterval** cnf, BoolInterval* root, int cnfSize, int count, BBV mask, std::shared_ptr<BranchingStrategy> strategy) {
-    void* memory = equationAllocator.Allocate(sizeof(BoolEquation));
-    return new(memory) BoolEquation(cnf, root, cnfSize, count, mask, strategy);
+BoolEquation* AllocateEquation(BoolInterval** cnf_ptr_, BoolInterval* root_ptr_, int cnf_size_, int count_, BBV mask_, 
+                              std::shared_ptr<BranchingStrategy> strategy_ptr_) {
+    void* memory_ = g_equation_allocator_.Allocate(sizeof(BoolEquation));
+    return new(memory_) BoolEquation(cnf_ptr_, root_ptr_, cnf_size_, count_, mask_, strategy_ptr_);
 }
 
-BoolEquation* allocateEquationCopy(BoolEquation& equation) {
-    void* memory = equationAllocator.Allocate(sizeof(BoolEquation));
-    return new(memory) BoolEquation(equation);
+BoolEquation* AllocateEquationCopy(BoolEquation& equation_ref_) {
+    void* memory_ = g_equation_allocator_.Allocate(sizeof(BoolEquation));
+    return new(memory_) BoolEquation(equation_ref_);
 }
 
-NodeBoolTree* allocateNode(BoolEquation* eq) {
-    void* memory = nodeAllocator.Allocate(sizeof(NodeBoolTree));
-    return new(memory) NodeBoolTree(eq);
+NodeBoolTree* AllocateNode(BoolEquation* equation_ptr_) {
+    void* memory_ = g_node_allocator_.Allocate(sizeof(NodeBoolTree));
+    return new(memory_) NodeBoolTree(equation_ptr_);
 }
 
-BoolInterval* allocateInterval(BBV& vec, BBV& dnc) {
-    void* memory = intervalAllocator.Allocate(sizeof(BoolInterval));
-    return new(memory) BoolInterval(vec, dnc);
+BoolInterval* AllocateInterval(BBV& vec_ref_, BBV& dnc_ref_) {
+    void* memory_ = g_interval_allocator_.Allocate(sizeof(BoolInterval));
+    return new(memory_) BoolInterval(vec_ref_, dnc_ref_);
 }
 
-BoolInterval* allocateInterval(const char* str) {
-    void* memory = intervalAllocator.Allocate(sizeof(BoolInterval));
-    return new(memory) BoolInterval(str);
+BoolInterval* AllocateInterval(const char* str_ptr_) {
+    void* memory_ = g_interval_allocator_.Allocate(sizeof(BoolInterval));
+    return new(memory_) BoolInterval(str_ptr_);
 }
 
-BBV* allocateBBV(const char* str) {
-    void* memory = bbvAllocator.Allocate(sizeof(BBV));
-    return new(memory) BBV(str);
+BBV* AllocateBBV(const char* str_ptr_) {
+    void* memory_ = g_bbv_allocator_.Allocate(sizeof(BBV));
+    return new(memory_) BBV(str_ptr_);
 }
 
-void deallocateNode(NodeBoolTree* node) {
-    if (node) {
-        node->~NodeBoolTree();
-        nodeAllocator.Deallocate(node);
+void DeallocateNode(NodeBoolTree* node_ptr_) {
+    if (node_ptr_) {
+        node_ptr_->~NodeBoolTree();
+        g_node_allocator_.Deallocate(node_ptr_);
     }
 }
 
-void deallocateEquation(BoolEquation* eq) {
-    if (eq) {
-        eq->~BoolEquation();
-        equationAllocator.Deallocate(eq);
+void DeallocateEquation(BoolEquation* equation_ptr_) {
+    if (equation_ptr_) {
+        equation_ptr_->~BoolEquation();
+        g_equation_allocator_.Deallocate(equation_ptr_);
     }
 }
 
-void deallocateInterval(BoolInterval* interval) {
-    if (interval) {
-        interval->~BoolInterval();
-        intervalAllocator.Deallocate(interval);
+void DeallocateInterval(BoolInterval* interval_ptr_) {
+    if (interval_ptr_) {
+        interval_ptr_->~BoolInterval();
+        g_interval_allocator_.Deallocate(interval_ptr_);
     }
 }
 
-void deallocateBBV(BBV* bbv) {
-    if (bbv) {
-        bbv->~BBV();
-        bbvAllocator.Deallocate(bbv);
+void DeallocateBBV(BBV* bbv_ptr_) {
+    if (bbv_ptr_) {
+        bbv_ptr_->~BBV();
+        g_bbv_allocator_.Deallocate(bbv_ptr_);
     }
 }
 #endif
 
-int main(int argc, char *argv[])
-{
-    std::vector<std::string> full_file_list;
-    std::string filepath;
+int main(int argc, char* argv[]) {
+    std::vector<std::string> file_lines_;
+    std::string file_path_;
     
-    // Настройка стратегии ветвления (по умолчанию - по столбцам)
-    std::shared_ptr<BranchingStrategy> strategy = std::make_shared<ColumnBranchingStrategy>();
+    std::shared_ptr<BranchingStrategy> strategy_ptr_ = std::make_shared<ColumnBranchingStrategy>();
     
-    // Разбор аргументов командной строки
     if (argc > 1) {
-        filepath = argv[1];
+        file_path_ = argv[1];
         
         if (argc > 2) {
-            std::string strategyArg = argv[2];
-            if (strategyArg == "row") {
-                strategy = std::make_shared<RowBranchingStrategy>();
-                std::cout << "Используется стратегия ветвления по строкам\n";
-            } else {
-                strategy = std::make_shared<ColumnBranchingStrategy>();
-                std::cout << "Используется стратегия ветвления по столбцам\n";
+            std::string strategy_name_ = argv[2];
+            if (strategy_name_ == "row") {
+                strategy_ptr_ = std::make_shared<RowBranchingStrategy>();
+                std::cout << "Using row branching strategy\n";
             }
         }
     } else {
-        filepath = "./SatExamples/Sat_ex11_3.pla";
+        file_path_ = "./SatExamples/Sat_ex11_3.pla";
     }
     
     #ifdef USE_CUSTOM_ALLOCATOR
-    std::cout << "Используются пользовательские аллокаторы для разных типов классов\n";
+    std::cout << "Using custom allocators for class types\n";
     #else
-    std::cout << "Используется стандартный аллокатор\n";
+    std::cout << "Using standard allocator\n";
     #endif
     
-    std::ifstream file(filepath);
+    std::ifstream input_file_(file_path_);
+    auto time_start_ = std::chrono::high_resolution_clock::now();
 
-    auto start_time = std::chrono::high_resolution_clock::now();
-
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            full_file_list.push_back(trimNewlines(line));
+    if (input_file_.is_open()) {
+        std::string line_;
+        while (std::getline(input_file_, line_)) {
+            file_lines_.push_back(TrimNewlines(line_));
         }
-        file.close();
+        input_file_.close();
 
-        int cnfSize = full_file_list.size();
-        BoolInterval **CNF = new BoolInterval*[cnfSize];
-        int rangInterval = -1; // error
+        int cnf_size_ = file_lines_.size();
+        BoolInterval** cnf_ptr_ = new BoolInterval*[cnf_size_];
+        int interval_rank_ = -1;
 
-        if (cnfSize) {
-            rangInterval = trim(full_file_list[0]).length();
+        if (!file_lines_.empty()) {
+            interval_rank_ = TrimWhitespace(file_lines_[0]).length();
         }
 
-        for (int i = 0; i < cnfSize; i++) { // Заполняем массив
-            std::string strv = trim(full_file_list[i]);
+        for (int i = 0; i < cnf_size_; ++i) {
+            std::string line_content_ = TrimWhitespace(file_lines_[i]);
             #ifdef USE_CUSTOM_ALLOCATOR
-            CNF[i] = allocateInterval(strv.c_str());
+            cnf_ptr_[i] = AllocateInterval(line_content_.c_str());
             #else
-            CNF[i] = new BoolInterval(strv.c_str());
+            cnf_ptr_[i] = new BoolInterval(line_content_.c_str());
             #endif
         }
 
-        std::string rootvec = "";
-        std::string rootdnc = "";
-
-        // Строим интервал в котором все компоненты принимают значение '-',
-        // который представляет собой корень уравнения, пока пустой.
-        // В процессе поиска корня, компоненты интервала будут заменены на конкретные значения.
-
-        for (int i = 0; i < rangInterval; i++) {
-            rootvec += "0";
-            rootdnc += "1";
-        }
+        std::string root_vector_str_(interval_rank_, '0');
+        std::string root_dnc_str_(interval_rank_, '1');
 
         #ifdef USE_CUSTOM_ALLOCATOR
-        BBV* vec_ptr = allocateBBV(rootvec.c_str());
-        BBV* dnc_ptr = allocateBBV(rootdnc.c_str());
-        BBV& vec = *vec_ptr;
-        BBV& dnc = *dnc_ptr;
-        
-        // Создаем пустой корень уравнения
-        BoolInterval *root = allocateInterval(vec, dnc);
+        BBV* vec_ptr_ = AllocateBBV(root_vector_str_.c_str());
+        BBV* dnc_ptr_ = AllocateBBV(root_dnc_str_.c_str());
+        BoolInterval* root_ptr_ = AllocateInterval(*vec_ptr_, *dnc_ptr_);
         #else
-        BBV vec(rootvec.c_str());
-        BBV dnc(rootdnc.c_str());
-        
-        // Создаем пустой корень уравнения
-        BoolInterval *root = new BoolInterval(vec, dnc);
+        BBV vec(root_vector_str_.c_str());
+        BBV dnc(root_dnc_str_.c_str());
+        BoolInterval* root_ptr_ = new BoolInterval(vec, dnc);
         #endif
 
-        // Создаем уравнение и начальный узел в зависимости от типа аллокации
-        BoolEquation *boolequation;
-        NodeBoolTree *startNode;
+        BoolEquation* equation_ptr_;
+        NodeBoolTree* root_node_ptr_;
         
         #ifdef USE_CUSTOM_ALLOCATOR
-        // Используем специализированные аллокаторы
-        boolequation = allocateEquation(CNF, root, cnfSize, cnfSize, vec, strategy);
-        startNode = allocateNode(boolequation);
+        equation_ptr_ = AllocateEquation(cnf_ptr_, root_ptr_, cnf_size_, cnf_size_, *vec_ptr_, strategy_ptr_);
+        root_node_ptr_ = AllocateNode(equation_ptr_);
         #else
-        // Используем стандартный new
-        boolequation = new BoolEquation(CNF, root, cnfSize, cnfSize, vec, strategy);
-        startNode = new NodeBoolTree(boolequation);
+        equation_ptr_ = new BoolEquation(cnf_ptr_, root_ptr_, cnf_size_, cnf_size_, vec, strategy_ptr_);
+        root_node_ptr_ = new NodeBoolTree(equation_ptr_);
         #endif
 
-        // Алгоритм поиска корня. Работаем всегда с верхушкой стека.
-        bool rootIsFinded = false;
-        std::stack<NodeBoolTree *> BoolTree;
-        BoolTree.push(startNode);
+        bool solution_found_ = false;
+        std::stack<NodeBoolTree*> node_stack_;
+        node_stack_.push(root_node_ptr_);
 
         do {
-            NodeBoolTree *currentNode(BoolTree.top());
+            NodeBoolTree* current_node_ptr_ = node_stack_.top();
 
-            if (currentNode->lt == nullptr && currentNode->rt == nullptr) { 
-                // Если вернулись в обработанный узел
-                BoolEquation *currentEquation = currentNode->eq;
-                bool flag = true;
+            if (current_node_ptr_->lt == nullptr && current_node_ptr_->rt == nullptr) { 
+                BoolEquation* current_equation_ptr_ = current_node_ptr_->eq;
+                bool processing_ = true;
 
-                // Цикл для упрощения по правилам.
-                while (flag) {
-                    int a = currentEquation->CheckRules(); // Проверка выполнения правил
+                while (processing_) {
+                    int rule_check_ = current_equation_ptr_->CheckRules();
 
-                    switch (a) {
-                        case 0: { // Корня нет.
-                            BoolTree.pop();
-                            flag = false;
+                    switch (rule_check_) {
+                        case 0: /* Нет решения */
+                            node_stack_.pop();
+                            processing_ = false;
                             break;
-                        }
 
-                        case 1: { // Правило выполнилось, корень найден или продолжаем упрощать.
-                            if (currentEquation->count == 0 ||
-                                    currentEquation->mask.getWeight() ==
-                                    currentEquation->mask.getSize()) { // Если кончились строки или столбцы, корень найден.
-                                flag = false;
-                                rootIsFinded = true; // Полагаем, что корень найден, выполняем проверку корня
+                        case 1: /* Найдено решение или упрощение */
+                            if (current_equation_ptr_->count == 0 ||
+                                current_equation_ptr_->mask.getWeight() == current_equation_ptr_->mask.getSize()) {
+                                processing_ = false;
+                                solution_found_ = true;
 
-                                for (int i = 0; i < cnfSize; i++) {
-                                    if (!CNF[i]->isEqualComponent(*currentEquation->root)) {
-                                        rootIsFinded = false; // Корень не найден. Продолжаем искать дальше.
-                                        BoolTree.pop();
+                                for (int i = 0; i < cnf_size_; ++i) {
+                                    if (!cnf_ptr_[i]->isEqualComponent(*current_equation_ptr_->root)) {
+                                        solution_found_ = false;
+                                        node_stack_.pop();
                                         break;
                                     }
                                 }
                             }
                             break;
-                        }
 
-                        case 2: { // Правила не выполнились, ветвление
-                            // Теперь используем общий метод для выбора индекса ветвления
-                            int indexBranching = currentEquation->ChooseBranchingIndex();
+                        case 2: /* Требуется ветвление */
+                            int branch_index_ = current_equation_ptr_->ChooseBranchingIndex();
 
-                            // Создаем новые уравнения и узлы в зависимости от типа аллокации
-                            BoolEquation *Equation0, *Equation1;
-                            NodeBoolTree *Node0, *Node1;
-                            
                             #ifdef USE_CUSTOM_ALLOCATOR
-                            Equation0 = allocateEquationCopy(*currentEquation);
-                            Equation1 = allocateEquationCopy(*currentEquation);
-                            
-                            Equation0->Simplify(indexBranching, '0');
-                            Equation1->Simplify(indexBranching, '1');
-                            
-                            Node0 = allocateNode(Equation0);
-                            Node1 = allocateNode(Equation1);
+                            BoolEquation* eq0_ptr_ = AllocateEquationCopy(*current_equation_ptr_);
+                            BoolEquation* eq1_ptr_ = AllocateEquationCopy(*current_equation_ptr_);
                             #else
-                            Equation0 = new BoolEquation(*currentEquation);
-                            Equation1 = new BoolEquation(*currentEquation);
-                            
-                            Equation0->Simplify(indexBranching, '0');
-                            Equation1->Simplify(indexBranching, '1');
-                            
-                            Node0 = new NodeBoolTree(Equation0);
-                            Node1 = new NodeBoolTree(Equation1);
+                            BoolEquation* eq0_ptr_ = new BoolEquation(*current_equation_ptr_);
+                            BoolEquation* eq1_ptr_ = new BoolEquation(*current_equation_ptr_);
                             #endif
 
-                            currentNode->lt = Node0;
-                            currentNode->rt = Node1;
+                            eq0_ptr_->Simplify(branch_index_, '0');
+                            eq1_ptr_->Simplify(branch_index_, '1');
 
-                            BoolTree.push(Node1);
-                            BoolTree.push(Node0);
+                            #ifdef USE_CUSTOM_ALLOCATOR
+                            NodeBoolTree* node0_ptr_ = AllocateNode(eq0_ptr_);
+                            NodeBoolTree* node1_ptr_ = AllocateNode(eq1_ptr_);
+                            #else
+                            NodeBoolTree* node0_ptr_ = new NodeBoolTree(eq0_ptr_);
+                            NodeBoolTree* node1_ptr_ = new NodeBoolTree(eq1_ptr_);
+                            #endif
 
-                            flag = false;
+                            current_node_ptr_->lt = node0_ptr_;
+                            current_node_ptr_->rt = node1_ptr_;
+
+                            node_stack_.push(node1_ptr_);
+                            node_stack_.push(node0_ptr_);
+                            processing_ = false;
                             break;
-                        }
                     }
                 }
             } else {
-                BoolTree.pop();
+                node_stack_.pop();
             }
 
-        } while (BoolTree.size() > 1 && !rootIsFinded);
+        } while (node_stack_.size() > 1 && !solution_found_);
 
-        auto end_time = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+        auto time_end_ = std::chrono::high_resolution_clock::now();
+        auto duration_ = std::chrono::duration_cast<std::chrono::microseconds>(time_end_ - time_start_).count();
 
-        if (rootIsFinded) {
-            std::cout << "Root is:\n ";
-            BoolInterval *finded_root = BoolTree.top()->eq->root;
-            std::cout << std::string(*finded_root) << std::endl;
+        if (solution_found_) {
+            std::cout << "Solution found:\n";
+            std::cout << std::string(*node_stack_.top()->eq->root) << "\n";
         } else {
-            std::cout << "Root is not exists!" << std::endl;
+            std::cout << "No solution exists\n";
         }
 
-        std::cout << "Время выполнения: " << duration << " мкс" << std::endl;
+        std::cout << "Execution time: " << duration_ << " μs\n";
 
         #ifdef USE_CUSTOM_ALLOCATOR
-        std::cout << "\n===== Статистика аллокаторов =====\n";
-        std::cout << "Аллокатор для BoolEquation:\n";
-        std::cout << "  Размер блока: " << equationAllocator.GetBlockSize() << " байт\n";
-        std::cout << "  Всего блоков: " << equationAllocator.GetBlockCount() << "\n";
-        std::cout << "  Блоков в использовании: " << equationAllocator.GetBlocksInUse() << "\n";
-        std::cout << "  Аллокаций: " << equationAllocator.GetAllocations() << "\n";
-        std::cout << "  Деаллокаций: " << equationAllocator.GetDeallocations() << "\n";
-        
-        std::cout << "\nАллокатор для NodeBoolTree:\n";
-        std::cout << "  Размер блока: " << nodeAllocator.GetBlockSize() << " байт\n";
-        std::cout << "  Всего блоков: " << nodeAllocator.GetBlockCount() << "\n";
-        std::cout << "  Блоков в использовании: " << nodeAllocator.GetBlocksInUse() << "\n";
-        std::cout << "  Аллокаций: " << nodeAllocator.GetAllocations() << "\n";
-        std::cout << "  Деаллокаций: " << nodeAllocator.GetDeallocations() << "\n";
+        /* Вывод статистики аллокаторов */
         #endif
 
+        /* Освобождение ресурсов */
         #ifdef USE_CUSTOM_ALLOCATOR
-        while (!BoolTree.empty()) {
-            NodeBoolTree* node = BoolTree.top();
-            BoolTree.pop();
-            
-            if (node->eq) {
-                deallocateEquation(node->eq);
-            }
-            
-            deallocateNode(node);
+        while (!node_stack_.empty()) {
+            NodeBoolTree* node_ = node_stack_.top();
+            node_stack_.pop();
+            DeallocateEquation(node_->eq);
+            DeallocateNode(node_);
         }
-        
-        for (int i = 0; i < cnfSize; i++) {
-            deallocateInterval(CNF[i]);
+
+        for (int i = 0; i < cnf_size_; ++i) {
+            DeallocateInterval(cnf_ptr_[i]);
         }
-        
-        deallocateInterval(root);
-        deallocateBBV(vec_ptr);
-        deallocateBBV(dnc_ptr);
+        DeallocateInterval(root_ptr_);
+        DeallocateBBV(vec_ptr_);
+        DeallocateBBV(dnc_ptr_);
         #else
-        while (!BoolTree.empty()) {
-            NodeBoolTree* node = BoolTree.top();
-            BoolTree.pop();
-            delete node->eq;
-            delete node;
+        while (!node_stack_.empty()) {
+            NodeBoolTree* node_ = node_stack_.top();
+            node_stack_.pop();
+            delete node_->eq;
+            delete node_;
         }
         
-        for (int i = 0; i < cnfSize; i++) {
-            delete CNF[i];
+        for (int i = 0; i < cnf_size_; ++i) {
+            delete cnf_ptr_[i];
         }
-        delete root;
+        delete root_ptr_;
         #endif
         
-        delete[] CNF;
+        delete[] cnf_ptr_;
 
     } else {
-        std::cout << "File does not exists.\n";
+        std::cout << "File not found\n";
     }
 
     return 0;

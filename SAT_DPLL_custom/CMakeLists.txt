@@ -42,7 +42,7 @@ set(COMMON_SOURCES
     "BBV.cpp"
     "boolequation.cpp"
     "boolinterval.cpp"
-    "Branching_strategy.cc"  # Новый файл с реализацией стратегий
+    "Branching_strategy.cc"
     "./lib/Allocator/Allocator.cpp"
 )
 
@@ -58,13 +58,10 @@ set(STRESS_TEST_SOURCES
     "allocator_test.cc"
 )
 
-# Основное приложение
 add_executable(SAT_DPLL ${MAIN_SOURCES})
 
-# Стресс-тест аллокатора
 add_executable(allocator_test ${STRESS_TEST_SOURCES})
 
-# Добавляем суффикс _custom для версии с пользовательским аллокатором
 if(USE_CUSTOM_ALLOCATOR)
     set_target_properties(SAT_DPLL PROPERTIES OUTPUT_NAME "SAT_DPLL_custom")
 endif()

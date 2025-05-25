@@ -162,65 +162,55 @@ void BBV::Set1(int k)
         throw 1;
 }
 
-BBV BBV::operator=(BBV & V)
-{
-    if (this != &V)//проверка на самоприсвоение
-    {
-        len = V.len;//переписываем значения размеров и удаляем существующий вектор
+BBV BBV::operator=(BBV& V) {
+    if (this != &V) {
+        byte* new_vec = new byte[V.size];  // Сначала выделяем новую память
+        
+        // Копируем данные
+        std::copy(V.vec, V.vec + V.size, new_vec);
+        
+        // Освобождаем старые данные
+        delete[] vec;
+        
+        // Обновляем состояние
+        vec = new_vec;
+        len = V.len;
         size = V.size;
-        if (vec != NULL)
-            delete vec;
-        vec = new byte[size];//захватываем память под новый вектор и переписывем туда переданный вектор
-        if (vec != NULL)
-        {
-            for (int i = 0; i < size; i++)
-                vec[i] = V.vec[i];
-        }
-        else
-            throw 0;
     }
     return *this;
 }
 
-BBV BBV::operator=(const char * str)
-{
-    if (str != NULL)//проверяем существует ли строка
-    {
-        len = strlen(str);//вычисляем размеры для вектора и удаляем старый вектор
-        size = (len - 1) / 8 + 1;
-        if (vec != NULL)
-            delete vec;
-        vec = new byte[size];//захватываем память для нового вектора и переписываем в его биты соотв. знач. строки
-        if (vec != NULL)
-        {
-            int i = 0, j = 8, k = 0;
-            byte mask = 1;
-            vec[0] ^= vec[0];
-            while (i < len)
-            {
-                if (j > 0)
-                {
-                    if (str[i] != '0')
-                        vec[k] |= mask;
-                    mask <<= 1;
-                    j--;
-                    i++;
-                }
-                else
-                {
-                    j = 8;
-                    k++;
-                    vec[k] ^= vec[k];
-                    mask = 1;
-                }
+BBV BBV::operator=(const char* str) {
+    if (!str) throw std::invalid_argument("Null pointer passed");
+    
+    const size_t new_len = strlen(str);
+    const size_t new_size = (new_len + 7) / 8;
+    
+    byte* new_vec = new byte[new_size]();  // Инициализация нулями
+    
+    try {
+        // Конвертация строки в битовый вектор
+        for (size_t i = 0; i < new_len; ++i) {
+            if (str[i] != '0') {
+                const size_t byte_idx = i / 8;
+                const size_t bit_idx = i % 8;
+                new_vec[byte_idx] |= (1 << bit_idx);
             }
         }
-        else
-            throw 0;
+        
+        // Освобождаем старые данные
+        delete[] vec;
+        
+        // Обновляем состояние
+        vec = new_vec;
+        len = new_len;
+        size = new_size;
+        
+        return *this;
+    } catch (...) {
+        delete[] new_vec;  // Освобождаем в случае ошибки
+        throw;
     }
-    else
-        throw 1;
-    return *this;
 }
 
 bool BBV::operator==(BBV & V)

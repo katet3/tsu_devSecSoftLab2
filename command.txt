@@ -1,0 +1,8 @@
+semgrep scan --lang c++ .
+
+scan-build make
+scan-build cmake .. 
+clang -c --analyze -Xanalyzer -analyzer-output=text file.c
+
+valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./SAT_DPLL ../SatExamples/Sat_ex11_3.pla
+valgrind --leak-check=full  ./SAT_DPLL_custom ../SatExamples/Sat_ex11_3.pla
