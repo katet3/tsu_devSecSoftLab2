@@ -1,3 +1,11 @@
+/*
+    Тестируем
+    Корректность работы аллокатора (нет ли утечек, повреждений данных).
+    Устойчивость к нагрузке (множественные Allocate/Deallocate).
+    Производительность (быстро ли работает выделение/освобождение).
+    Обработку ошибок (например, переполнение пула памяти).
+*/
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -14,7 +22,7 @@ struct TestBlock {
     char data[1020];
 };
 
-Allocator stress_test_allocator_(1024, 1000);
+Allocator stress_test_allocator_(sizeof(TestBlock), 1000);
 
 static void HandleOutOfMemory() {
     std::cout << "Error: Out of memory" << std::endl;

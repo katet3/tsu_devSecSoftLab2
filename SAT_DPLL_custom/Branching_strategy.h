@@ -25,6 +25,7 @@ public:
 
 /*
     Стратегия ветвления по строкам
+    Maximum Occurrences in Minimum Clauses (MOM)
 */
 class RowBranchingStrategy : public BranchingStrategy {
 public:
